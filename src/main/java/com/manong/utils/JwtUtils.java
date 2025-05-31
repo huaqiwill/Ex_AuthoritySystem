@@ -3,125 +3,85 @@ package com.manong.utils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Component;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-
-@Data
-@Component
-@ConfigurationProperties(prefix = "jwt")
+/**
+ * JWT工具类
+ */
 public class JwtUtils {
-    //密钥
-    private String secret;
-    //过期时间 毫秒
-    private Long expiration;
+
+    private static final String SECRET = "manong"; // 密钥
+    private static final long EXPIRATION = 60 * 60 * 1000; // 过期时间，单位毫秒
 
     /**
-     * 从数据声明生成令牌
-     *
-     * @param claims
-     * @return
+     * 生成JWT
+     * @param username 用户名
+     * @return JWT字符串
      */
-    private String generateToken(Map<String, Object> claims) {
-        Date expirationDate = new Date(System.currentTimeMillis() + expiration);
-        return Jwts.builder().setClaims(claims).setExpiration(expirationDate).signWith(SignatureAlgorithm.HS512, secret).compact();
+    public static String generateToken(String username) {
+        Map<String, Object> claims = new HashMap<>();
+        return createToken(claims, username);
     }
 
     /**
-     * 从令牌总获取数据申明
-     *
-     * @param token
-     * @return
+     * 从JWT中获取用户名
+     * @param token JWT字符串
+     * @return 用户名
      */
-    public Claims getClaimsFormToken(String token) {
-        Claims claims;
-        try {
-            claims = Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
-        } catch (Exception e) {
-            claims = null;
-        }
-        return claims;
+    public static String getUsernameFromToken(String token) {
+        return getClaimsFromToken(token).getSubject();
     }
 
     /**
-     * 生成令牌
-     *
-     * @param userDetails
-     * @return
+     * 验证JWT是否有效
+     * @param token JWT字符串
+     * @param username 用户名
+     * @return 是否有效
      */
-    public String generateToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>(2);
-        claims.put(Claims.SUBJECT, userDetails.getUsername());
-        claims.put(Claims.ISSUED_AT, new Date());
-        return generateToken(claims);
+    public static boolean validateToken(String token, String username) {
+        String usernameInToken = getUsernameFromToken(token);
+        return usernameInToken.equals(username) && !isTokenExpired(token);
     }
 
     /**
-     * 从令牌中获取用户名
-     *
-     * @param token
-     * @return
+     * 判断JWT是否过期
+     * @param token JWT字符串
+     * @return 是否过期
      */
-    public String getUsernameFromToken(String token) {
-        String username;
-        try {
-            Claims claims = getClaimsFormToken(token);
-            username = claims.getSubject();
-        } catch (Exception e) {
-            username = null;
-        }
-        return null;
-    }
-
-    /**
-     * 判断令牌是否过期
-     *
-     * @param token
-     * @return
-     */
-    public Boolean isTokenExpired(String token) {
-        Claims claims = getClaimsFormToken(token);
-        Date expiration = claims.getExpiration();
+    private static boolean isTokenExpired(String token) {
+        Date expiration = getClaimsFromToken(token).getExpiration();
         return expiration.before(new Date());
     }
 
     /**
-     * 刷新令牌
-     *
-     * @param token
-     * @return
+     * 创建JWT
+     * @param claims 声明
+     * @param subject 主题
+     * @return JWT字符串
      */
-    public String refreshToken(String token) {
-        String refreshedToken;
-        try {
-            Claims claims = getClaimsFormToken(token);
-            claims.put(claims.ISSUED_AT, new Date());
-            refreshedToken = generateToken(claims);
-        } catch (Exception e) {
-            refreshedToken = null;
-        }
-        return refreshedToken;
+    private static String createToken(Map<String, Object> claims, String subject) {
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
+                .signWith(SignatureAlgorithm.HS512, SECRET)
+                .compact();
     }
 
     /**
-     * 验证令牌
-     *
-     * @param token
-     * @param userDetails
-     * @return
+     * 从JWT中获取声明
+     * @param token JWT字符串
+     * @return 声明
      */
-    public Boolean validateToken(String token, UserDetails userDetails) {
-        User user = (User) userDetails;
-        String username = getUsernameFromToken(token);
-        return (username.equals(user.getUsername()) && !isTokenExpired(token));
+    private static Claims getClaimsFromToken(String token) {
+        return Jwts.parser()
+                .setSigningKey(SECRET)
+                .parseClaimsJws(token)
+                .getBody();
     }
 }
 
