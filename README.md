@@ -125,7 +125,3 @@ mvn spring-boot:run
 3. 提交更改 (`git commit -m 'Add some feature'`)
 4. 推送到分支 (`git push origin feature/your-feature`)
 5. 创建Pull Request
-
-## 许可证
-
-[MIT License](LICENSE)"# Ex_AuthoritySystem" 
